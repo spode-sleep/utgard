@@ -1,0 +1,70 @@
+Select matching_tags.id_picture 
+	 from ((Select users_presence.id_picture 
+		from (Select Count(DISTINCT authors.id_author) as count_of_match, authors.id_picture as id_picture 
+			from users inner join authors on authors.id_author = users.id 
+			Where users.login in ('second_user','third_user') 
+			Group by authors.id_picture) as users_presence 
+		where users_presence.count_of_match = 2) as matching_users
+INNER JOIN
+			(Select tags_prescense.id_picture from (Select Count(DISTINCT tags.id) as count_of_match, tags_of_pics.id_picture as id_picture 
+				from tags inner join tags_of_pics on tags_of_pics.id_tag = tags.id 
+				Where tags.tag in ('picture') 
+				Group by tags_of_pics.id_picture) as tags_prescense 
+			where tags_prescense.count_of_match = 1) as matching_tags
+ON matching_users.id_picture = matching_tags.id_picture)
+
+
+
+
+SELECT user_statistic.login, user_statistic.count_of_pics
+	 FROM
+	 (SELECT count(DISTINCT authors.id_picture) as count_of_pics, users.login as login
+	 FROM authors INNER JOIN users ON authors.id_author = users.id
+	 WHERE authors.id_picture IN 
+	 (
+	 Select matching_tags.id_picture 
+	 from ((Select users_presence.id_picture 
+		from (Select Count(DISTINCT authors.id_author) as count_of_match, authors.id_picture as id_picture 
+			from users inner join authors on authors.id_author = users.id 
+			Where users.login in ('second_user') 
+			Group by authors.id_picture) as users_presence 
+		where users_presence.count_of_match = 1) as matching_users
+INNER JOIN
+			(Select tags_prescense.id_picture from (Select Count(DISTINCT tags.id) as count_of_match, tags_of_pics.id_picture as id_picture 
+				from tags inner join tags_of_pics on tags_of_pics.id_tag = tags.id 
+				Where tags.tag in ('picture') 
+				Group by tags_of_pics.id_picture) as tags_prescense 
+			where tags_prescense.count_of_match = 1) as matching_tags
+ON matching_users.id_picture = matching_tags.id_picture)
+	 )
+GROUP BY login
+	 ) as user_statistic
+	 WHERE user_statistic.login LIKE Concat('t','%') ORDER BY user_statistic.count_of_pics DESC 
+	 LIMIT 8
+
+
+SELECT user_statistic.login, user_statistic.count_of_pics
+	 FROM
+	 (SELECT count(DISTINCT authors.id_picture) as count_of_pics, users.login as login
+	 FROM authors INNER JOIN users ON authors.id_author = users.id
+	 WHERE authors.id_picture IN 
+	 (
+	 Select matching_tags.id_picture 
+	 from ((Select users_presence.id_picture 
+		from (Select Count(DISTINCT authors.id_author) as count_of_match, authors.id_picture as id_picture 
+			from users inner join authors on authors.id_author = users.id 
+			Where users.login in ('$prev_parts_authors_converted') 
+			Group by authors.id_picture) as users_presence 
+		where users_presence.count_of_match = $len_prev_parts_authors) as matching_users
+INNER JOIN
+			(Select tags_prescense.id_picture from (Select Count(DISTINCT tags.id) as count_of_match, tags_of_pics.id_picture as id_picture 
+				from tags inner join tags_of_pics on tags_of_pics.id_tag = tags.id 
+				Where tags.tag in ('$prev_parts_tags_converted') 
+				Group by tags_of_pics.id_picture) as tags_prescense 
+			where tags_prescense.count_of_match = $len_prev_parts_tags) as matching_tags
+ON matching_users.id_picture = matching_tags.id_picture)
+	 )
+	 GROUP BY login
+	 ) as user_statistic
+	 WHERE user_statistic.login LIKE Concat(?,'%') ORDER BY user_statistic.count_of_pics DESC 
+	 LIMIT 8

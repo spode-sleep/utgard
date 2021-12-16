@@ -1,0 +1,20 @@
+SELECT matching_tags.id_picture 
+	 from ((Select users_presence.id_picture 
+		from (Select Count(DISTINCT authors.id_author) as count_of_match, authors.id_picture as id_picture 
+			from users inner join authors on authors.id_author = users.id 
+			Where users.login in ('$parts_authors_converted') 
+			Group by authors.id_picture) as users_presence 
+		where users_presence.count_of_match = ?) as matching_users
+INNER JOIN
+			(Select tags_prescense.id_picture from (Select Count(DISTINCT tags.id) as count_of_match, tags_of_pics.id_picture as id_picture 
+				from tags inner join tags_of_pics on tags_of_pics.id_tag = tags.id 
+				Where tags.tag in ('$parts_tags_converted') 
+				Group by tags_of_pics.id_picture) as tags_prescense 
+			where tags_prescense.count_of_match = ?) as matching_tags
+ON matching_users.id_picture = matching_tags.id_picture)
+LIMIT 40 OFFSET ?
+
+
+SELECT COUNT(*) , id_picture
+FROM likes
+GROUP BY id_picture

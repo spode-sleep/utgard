@@ -1,0 +1,86 @@
+require "connect.php";
+
+	$start_of_req = $_POST["request"];
+	$prev_parts = $_POST["prev_parts"];
+	$prev_parts_count = $_POST["prev_parts_count"];
+	
+
+	if(!$prev_parts_count)
+	{
+		$req = $db -> prepare("SELECT user_statistic.login, user_statistic.count_of_pics
+	 FROM
+	 (SELECT count(DISTINCT authors.id_picture) as count_of_pics, users.login as login
+	 FROM authors INNER JOIN users ON authors.id_author = users.id
+	 GROUP BY login) as user_statistic
+	 WHERE user_statistic.login LIKE Concat(?,'%') ORDER BY user_statistic.count_of_pics DESC 
+	 LIMIT 8");
+	}
+	else
+	{
+		$prev_parts_converted = implode("','",array_map("mysql_real_escape_string", $prev_parts));
+		$req = $db -> prepare("SELECT user_statistic.login, user_statistic.count_of_pics
+	 FROM
+	 (SELECT count(DISTINCT authors.id_picture) as count_of_pics, users.login as login
+	 FROM authors INNER JOIN users ON authors.id_author = users.id
+	 WHERE authors.id_picture IN 
+	 (SELECT DISTINCT authors.id_picture FROM authors INNER JOIN users ON authors.id_author = users.id WHERE users.login IN ('$prev_parts_converted'))
+	 GROUP BY login
+	 ) as user_statistic
+	 WHERE user_statistic.login LIKE Concat(?,'%') ORDER BY user_statistic.count_of_pics DESC 
+	 LIMIT 8");
+	}
+	$req -> bind_param('s',$start_of_req);
+	$req -> execute();
+	$result = $req -> get_result();
+	$result = $result -> fetch_all(MYSQLI_NUM);
+	if(count($result))
+		echo json_encode($result, JSON_FORCE_OBJECT);
+	else
+		echo json_encode(array(), JSON_FORCE_OBJECT);
+
+function guess_request()
+	{
+		var full_request = document.getElementById('search_string').value.trim();
+		var last_divider_index = full_request.lastIndexOf(" ");
+		var last_part_of_request = last_divider_index === -1?full_request:full_request.slice(last_divider_index+1);
+		var prev_parts = full_request.slice(0,last_divider_index).split(' ');
+		var count_of_prev_parts = last_divider_index === -1?0:prev_parts.length;
+		$.ajax({
+			url:"db/search_support.php",
+			type:"POST",
+			data:{'request':last_part_of_request, 'prev_parts[]': prev_parts, 'prev_parts_count': count_of_prev_parts},
+			success:
+				function(data)
+				{
+					//alert(data);
+					hints = JSON.parse(data);
+					table_rows = "";
+					if(Object.keys(hints).length)
+						{
+							for(var i=0;i<Object.keys(hints).length;i++)
+							{
+								table_rows = table_rows + "<tr><td>"+full_request.slice(0,last_divider_index+1)+hints[i][0]+" ("+hints[i][1]+")</td></tr>";
+							}
+							document.getElementById('search_hint_table').innerHTML = table_rows;
+							document.getElementById('search_hint_table').style.visibility = "visible";
+							
+
+							td_s = document.getElementsByTagName('td');
+							for(var i=0;i<td_s.length;i++)
+								td_s[i].addEventListener("click",function(){
+									var value = this.innerHTML.slice(0,this.innerHTML.lastIndexOf(' '));
+									document.getElementById('search_string').value = value;
+								});
+						}
+					else
+						{
+							document.getElementById('search_hint_table').style.visibility = "hidden";
+						}
+				},
+			error:
+				function()
+				{
+					alert("error during getting search hint");
+				}
+	});
+	}
